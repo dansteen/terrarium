@@ -3,10 +3,14 @@ package vault
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/dansteen/terrarium/service"
 	vault "github.com/hashicorp/vault/api"
@@ -107,4 +111,46 @@ func (service *Service) Healthy() (bool, error) {
 		}
 	}
 	return false, errors.New("We shouldn't be here")
+}
+
+// Read will read an existing instance.  We need to overide the generic reader here to ensure that we get our extra stanzas
+func (service *Service) Read(configPath string) (bool, error) {
+
+	// if there is existing instance data
+	if _, err := os.Stat(configPath); err == nil {
+		// if there is read it in (these files are short so we can read the whole thing)
+		content, err := ioutil.ReadFile(configPath)
+		if err != nil {
+			fmt.Printf("%v", err)
+			log.Error().Err(err).Msgf("Error reading config file at %s.", configPath)
+			return false, err
+		}
+
+		err = yaml.Unmarshal(content, service)
+		if err != nil {
+			log.Error().Err(err).Msgf("Error processing config file content: %s.", configPath)
+			return false, err
+		}
+		return true, nil
+	}
+	// we return false if there is no config file to read
+	return false, nil
+}
+
+// Write will write instance data to a file in workspace named <app>.yml.   We need to overide the generic reader here to ensure that we get our extra stanzas
+func (service *Service) Write(configPath string) error {
+
+	// marshall our data
+	data, err := yaml.Marshal(service)
+	if err != nil {
+		log.Error().Err(err).Msg("Error processing config data for writing")
+		return err
+	}
+	// and write it out
+	err = ioutil.WriteFile(configPath, data, 0644)
+	if err != nil {
+		log.Error().Err(err).Msgf("Error writing config data to %s", configPath)
+		return err
+	}
+	return nil
 }

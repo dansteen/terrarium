@@ -32,49 +32,27 @@ type Generic struct {
 
 // Init will generate a new service for this workspace unless one already exists
 // and will return true if it generates one and false if it exists
-func (service *Generic) Init(configPath string) (bool, error) {
-
-	// try to read in existing data
-	read, err := service.Read(configPath)
-	if err != nil {
-		return false, err
-	}
+func (service *Generic) Init(configPath string) error {
 
 	// Make sure we have the binary we need
-	if _, err = os.Stat(filepath.Join(service.Workspace(), service.Name())); err != nil {
+	if _, err := os.Stat(filepath.Join(service.Workspace(), service.Name())); err != nil {
 		log.Info().Msgf("Existing %s binary not found", strings.Title(service.Name()))
 		err := service.Download()
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
 
 	// create our datadir if it does not exist
-	if _, err = os.Stat(service.Datadir); err != nil {
+	if _, err := os.Stat(service.Datadir); err != nil {
 		err = os.Mkdir(service.Datadir, 0755)
 		if err != nil {
 			log.Error().Err(err).Msgf("Could not create %s data dir:", service.Name())
-			return false, err
+			return err
 		}
 	}
 
-	// if we read existing data above we do not write new data
-	if read {
-		return false, nil
-	}
-
-	// otherwise we continue on and write our service config
-	err = service.WriteServiceConfig()
-	if err != nil {
-		return false, err
-	}
-	// and write our config
-	err = service.Write(configPath)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return nil
 
 }
 

@@ -54,7 +54,7 @@ vault {
 	newService.Datadir = filepath.Join(workspace, newService.Name()+".d")
 	newService.Logfile = filepath.Join(workspace, newService.Name()+".log")
 
-	newService.Cmdline = fmt.Sprintf("%s agent -data-dir \"%s\" -config \"%s\" &> \"%s\"", filepath.Join(workspace, newService.Name()), newService.Datadir, newService.ServiceConfigName, newService.Logfile)
+	newService.Cmdline = fmt.Sprintf("%s agent -data-dir \"%s\" -config \"%s\" &> \"%s\"", filepath.Join(workspace, newService.Name()), newService.Datadir, filepath.Join(newService.Datadir, newService.ServiceConfigName), newService.Logfile)
 	newService.DownloadURL = fmt.Sprintf("https://releases.hashicorp.com/%s/%s/%s_%s_%s_%s.zip", newService.Name(), newService.Version, newService.Name(), newService.Version, runtime.GOOS, runtime.GOARCH)
 	return &newService
 }

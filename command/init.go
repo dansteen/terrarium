@@ -58,12 +58,19 @@ func InitEnv(cmd *cobra.Command, args []string) {
 // startService will start up a support service or restart it if its unhealthy
 func startService(service service.SupportService) error {
 
-	newInstance, err := service.Init(filepath.Join(service.Workspace(), service.Name()+".yml"))
+	configPath := filepath.Join(service.Workspace(), service.Name()+".yml")
+	// first see if we have an existing config
+	read, err := service.Read(configPath)
+	if err != nil {
+		return err
+	}
+
+	err = service.Init(configPath)
 	if err != nil {
 		os.Exit(1)
 	}
 	// if there is already an instance in this workspace
-	if !newInstance {
+	if read {
 		log.Info().Msgf("Existing %s Instance found. Checking...", strings.Title(service.Name()))
 		// check to see if its healthy
 		healthy, _ := service.Healthy()
@@ -89,7 +96,18 @@ func startService(service service.SupportService) error {
 		return err
 	}
 
-	// and check health
+	// then, we write the service config
+	err = service.WriteServiceConfig()
+	if err != nil {
+		return err
+	}
+	// and and our config to make sure we have all the information we need
+	err = service.Write(configPath)
+	if err != nil {
+		return err
+	}
+
+	// then we make sure things are healthy
 	log.Info().Msgf("Waiting %d seconds for %s to come up", service.HealthyTimeout(), strings.Title(service.Name()))
 	healthy, err := service.Healthy()
 	if err != nil || !healthy {
