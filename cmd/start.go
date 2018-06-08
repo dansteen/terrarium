@@ -35,8 +35,10 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	startCmd.PersistentFlags().StringP("appPath", "p", "", "Path to the application directory to add")
+	startCmd.PersistentFlags().StringP("appPath", "a", "", "Path to the application directory to add")
 	startCmd.PersistentFlags().StringP("hashLabel", "l", "", "arbitrary version label to use for this application")
+	startCmd.MarkFlagRequired("appPath")
+	startCmd.MarkFlagRequired("hashLabel")
 	viper.BindPFlag("appPath", startCmd.PersistentFlags().Lookup("appPath"))
 	viper.BindPFlag("hashLabel", startCmd.PersistentFlags().Lookup("hashLabel"))
 

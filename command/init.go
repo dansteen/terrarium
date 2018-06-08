@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/dansteen/terrarium/consul"
@@ -58,14 +57,13 @@ func InitEnv(cmd *cobra.Command, args []string) {
 // startService will start up a support service or restart it if its unhealthy
 func startService(service service.SupportService) error {
 
-	configPath := filepath.Join(service.Workspace(), service.Name()+".yml")
-	// first see if we have an existing config
-	read, err := service.Read(configPath)
+	// first see if we have an existing config in the services workspace
+	read, err := service.Read()
 	if err != nil {
 		return err
 	}
 
-	err = service.Init(configPath)
+	err = service.Init()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -102,7 +100,7 @@ func startService(service service.SupportService) error {
 		return err
 	}
 	// and and our config to make sure we have all the information we need
-	err = service.Write(configPath)
+	err = service.Write()
 	if err != nil {
 		return err
 	}

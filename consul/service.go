@@ -47,6 +47,19 @@ server: true
 	return &newService
 }
 
+// GetService will get the existing service in a workspace (if it exists)
+func GetService(workspace string) (*Service, error) {
+	service := Service{}
+	service.SetName("consul")
+	service.SetWorkspace(workspace)
+	found, err := service.Read()
+	if err != nil || !found {
+		log.Error().Err(err).Msgf("Could not get existing %s service in workspace %s", service.Name(), service.Workspace())
+		return &service, err
+	}
+	return &service, nil
+}
+
 // Healthy will check the health of the consul instance
 func (service *Service) Healthy() (bool, error) {
 	// first run our generic check

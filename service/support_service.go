@@ -2,11 +2,11 @@ package service
 
 // SupportService is the interface that a support service for the environment must implement
 type SupportService interface {
-	Init(string) error
+	Init() error
 	Download() error
 	Healthy() (bool, error)
-	Read(string) (bool, error)
-	Write(string) error
+	Read() (bool, error)
+	Write() error
 	WriteServiceConfig() error
 	Start() error
 	Stop() error

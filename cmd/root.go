@@ -54,16 +54,15 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	var project string
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.terrarium.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&project, "project", "p", "default", "the name of the project")
+	rootCmd.PersistentFlags().StringP("project", "p", "default", "the name of the project")
 
 	// set the workdir from our project name
-	viper.Set("workspace", fmt.Sprintf("/tmp/terrarium_%s", project))
-	viper.Set("project", project)
+	viper.BindPFlag("project", rootCmd.PersistentFlags().Lookup("project"))
+	viper.Set("workspace", fmt.Sprintf("/tmp/terrarium_%s", rootCmd.PersistentFlags().Lookup("project").Value))
 
 	// we are running in the console, so we use the console logger
 	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Timestamp().Logger()

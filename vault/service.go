@@ -52,6 +52,19 @@ func NewService(workspace string) (*Service, error) {
 	return &newService, nil
 }
 
+// GetService will get the existing service in a workspace (if it exists)
+func GetService(workspace string) (*Service, error) {
+	service := Service{}
+	service.SetName("vault")
+	service.SetWorkspace(workspace)
+	found, err := service.Read()
+	if err != nil || !found {
+		log.Error().Err(err).Msgf("Could not get existing %s service in workspace %s", service.Name(), service.Workspace())
+		return &service, err
+	}
+	return &service, nil
+}
+
 // Healthy will check the health of the consul instance
 func (service *Service) Healthy() (bool, error) {
 	// first run our generic check
@@ -114,7 +127,9 @@ func (service *Service) Healthy() (bool, error) {
 }
 
 // Read will read an existing instance.  We need to overide the generic reader here to ensure that we get our extra stanzas
-func (service *Service) Read(configPath string) (bool, error) {
+func (service *Service) Read() (bool, error) {
+	// the location of the config file
+	configPath := filepath.Join(service.Workspace(), service.Name()+".yml")
 
 	// if there is existing instance data
 	if _, err := os.Stat(configPath); err == nil {
@@ -138,7 +153,9 @@ func (service *Service) Read(configPath string) (bool, error) {
 }
 
 // Write will write instance data to a file in workspace named <app>.yml.   We need to overide the generic reader here to ensure that we get our extra stanzas
-func (service *Service) Write(configPath string) error {
+func (service *Service) Write() error {
+	// the location of the config file
+	configPath := filepath.Join(service.Workspace(), service.Name()+".yml")
 
 	// marshall our data
 	data, err := yaml.Marshal(service)

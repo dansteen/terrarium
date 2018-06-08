@@ -3,33 +3,17 @@ package consul
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/dansteen/terrarium/utility"
+	consul "github.com/hashicorp/consul/api"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
 )
 
-// Data stores a representation of our consul data in a fashion that it can be easily added to consul
-type Data struct {
-	hashLabel string
-	Records   map[string]string
-}
-
-// UnmarshalYAML(unmarshal func(interface{}) error) error
-
-// UnmarshalYAML allows for custom unmarshaling
-func (data Data) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var rawData interface{}
-	// parse the data into a variable
-	unmarshal(rawData)
-	// run through and add data to our struct
-	spew.Dump(rawData)
-	return nil
-}
-
 // Load will accept a path to a yaml file and will load the content of that file into consul using the methodology described here:
 // https://github.com/traitify/ops_scripts/blob/master/CONSUL_ORGANIZATION.md#app
-func Load(dataFile string, hashLabel string) error {
+func (service *Service) Load(dataFile, appName, hashLabel string) error {
 
 	// make sure the file exists
 	if _, err := os.Stat(dataFile); err != nil {
@@ -44,8 +28,28 @@ func Load(dataFile string, hashLabel string) error {
 		return err
 	}
 	// create our data structure
-	data := Data{hashLabel: hashLabel}
+	data := utility.YamlData{DataType: "consul"}
 	yaml.Unmarshal(content, &data)
 
+	// create a consul connection
+	client, err := consul.NewClient(&consul.Config{
+		Address: service.Address,
+		Scheme:  "http",
+	})
+	if err != nil {
+		log.Error().Err(err)
+		return err
+	}
+
+	// run through our records and create keys
+	for key, value := range data.Records {
+		_, err = client.KV().Put(&consul.KVPair{Key: filepath.Join("app", appName, hashLabel, key), Value: []byte(value)}, &consul.WriteOptions{})
+		if err != nil {
+			log.Error().Err(err).Msgf("Could not load application data file %s to consul:", dataFile)
+			return err
+		}
+	}
+
+	log.Info().Msgf("Loaded data file %s into consul", dataFile)
 	return nil
 }

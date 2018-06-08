@@ -24,7 +24,7 @@ type Generic struct {
 	Datadir           string `yaml:"datadir"`
 	Logfile           string `yaml:"logfile"`
 	DownloadURL       string `yaml:"download_url"`
-	ServiceConfigName string `yaml:"app_config_name"`
+	ServiceConfigName string `yaml:"service_config_name"`
 	healthyTimeout    int    `yaml:"healthy_timeout"`
 	serviceConfig     string
 	workspace         string
@@ -32,7 +32,7 @@ type Generic struct {
 
 // Init will generate a new service for this workspace unless one already exists
 // and will return true if it generates one and false if it exists
-func (service *Generic) Init(configPath string) error {
+func (service *Generic) Init() error {
 
 	// Make sure we have the binary we need
 	if _, err := os.Stat(filepath.Join(service.Workspace(), service.Name())); err != nil {
@@ -83,8 +83,10 @@ func (service *Generic) WriteServiceConfig() error {
 	return nil
 }
 
-// Read will read an existing instance
-func (service *Generic) Read(configPath string) (bool, error) {
+// Read will read an existing instance from the services workspace
+func (service *Generic) Read() (bool, error) {
+	// the location of the config file
+	configPath := filepath.Join(service.Workspace(), service.Name()+".yml")
 
 	// if there is existing instance data
 	if _, err := os.Stat(configPath); err == nil {
@@ -108,7 +110,8 @@ func (service *Generic) Read(configPath string) (bool, error) {
 }
 
 // Write will write instance data to a file in workspace named <app>.yml
-func (service *Generic) Write(configPath string) error {
+func (service *Generic) Write() error {
+	configPath := filepath.Join(service.Workspace(), service.Name()+".yml")
 
 	// marshall our data
 	data, err := yaml.Marshal(service)
@@ -190,7 +193,7 @@ func (service *Generic) Start() error {
 	// save off some values
 	service.Pid = cmd.Process.Pid
 	// once it comes up write our config
-	err = service.Write(filepath.Join(service.Workspace(), service.Name()+".yml"))
+	err = service.Write()
 	if err != nil {
 		// stop the service so we dont leave running processes around
 		service.Stop()
