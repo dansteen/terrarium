@@ -16,10 +16,11 @@ import (
 // Service is an instance of this service
 type Service struct {
 	service.Generic
+	client *nomad.Client
 }
 
 // NewService will create a initialize an instance of the service with default values
-func NewService(workspace, consulAddress, vaultAddress, vaultToken string) *Service {
+func NewService(workspace, consulAddress, vaultAddress, vaultToken string) (*Service, error) {
 	// first initialize the generic stuff
 	newService := Service{}
 	newService.SetName("nomad")
@@ -56,7 +57,17 @@ vault {
 
 	newService.Cmdline = fmt.Sprintf("%s agent -data-dir \"%s\" -config \"%s\" &> \"%s\"", filepath.Join(workspace, newService.Name()), newService.Datadir, filepath.Join(newService.Datadir, newService.ServiceConfigName), newService.Logfile)
 	newService.DownloadURL = fmt.Sprintf("https://releases.hashicorp.com/%s/%s/%s_%s_%s_%s.zip", newService.Name(), newService.Version, newService.Name(), newService.Version, runtime.GOOS, runtime.GOARCH)
-	return &newService
+	// create a nomad connection
+	client, err := nomad.NewClient(&nomad.Config{
+		Address: newService.Address,
+	})
+	if err != nil {
+		log.Error().Err(err)
+		return &newService, err
+	}
+	newService.client = client
+
+	return &newService, nil
 }
 
 // GetService will get the existing service in a workspace (if it exists)
@@ -69,6 +80,16 @@ func GetService(workspace string) (*Service, error) {
 		log.Error().Err(err).Msgf("Could not get existing %s service in workspace %s", service.Name(), service.Workspace())
 		return &service, err
 	}
+	// create a nomad connection
+	client, err := nomad.NewClient(&nomad.Config{
+		Address: service.Address,
+	})
+	if err != nil {
+		log.Error().Err(err)
+		return &service, err
+	}
+	service.client = client
+
 	return &service, nil
 }
 

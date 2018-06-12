@@ -22,6 +22,7 @@ import (
 type Service struct {
 	service.Generic
 	RootToken string `yaml:"root_token"`
+	client    *vault.Client
 }
 
 // NewService will create a initialize an instance of the service with default values
@@ -49,6 +50,19 @@ func NewService(workspace string) (*Service, error) {
 
 	newService.Cmdline = fmt.Sprintf("%s server -dev -dev-root-token-id %s &> \"%s\"", filepath.Join(workspace, newService.Name()), newService.RootToken, newService.Logfile)
 	newService.DownloadURL = fmt.Sprintf("https://releases.hashicorp.com/%s/%s/%s_%s_%s_%s.zip", newService.Name(), newService.Version, newService.Name(), newService.Version, runtime.GOOS, runtime.GOARCH)
+
+	// set up a client connection
+	client, err := vault.NewClient(&vault.Config{
+		Address: newService.Address,
+	})
+	if err != nil {
+		log.Error().Err(err)
+		return &newService, err
+	}
+	// set the token we use to communicate with vault
+	client.SetToken(newService.RootToken)
+	newService.client = client
+
 	return &newService, nil
 }
 
@@ -62,6 +76,19 @@ func GetService(workspace string) (*Service, error) {
 		log.Error().Err(err).Msgf("Could not get existing %s service in workspace %s", service.Name(), service.Workspace())
 		return &service, err
 	}
+
+	// set up a client connection
+	client, err := vault.NewClient(&vault.Config{
+		Address: service.Address,
+	})
+	if err != nil {
+		log.Error().Err(err)
+		return &service, err
+	}
+	// set the token we use to communicate with vault
+	client.SetToken(service.RootToken)
+	service.client = client
+
 	return &service, nil
 }
 
@@ -168,6 +195,50 @@ func (service *Service) Write() error {
 	if err != nil {
 		log.Error().Err(err).Msgf("Error writing config data to %s", configPath)
 		return err
+	}
+	return nil
+}
+
+// ConfigureBackends will configure the backends that we need for vault
+func (service *Service) ConfigureBackends() error {
+	log.Info().Msg("Configuring secret backends")
+	// TODO: don't know why we need this here. It shouls already be configured when the service is created...
+	service.client.SetToken(service.RootToken)
+
+	// newer versions of vault use v2 of the secret backend.  We don't use that in prod (yet) so we reconfigure here
+	// first we check to see what version the secrets are running
+	mounts, err := service.client.Sys().ListMounts()
+	if err != nil {
+		log.Error().Err(err).Msgf("Could not get information on the current secret backend")
+		return err
+	}
+	var hasSecret bool
+	// if the secret mount is not version one we remount, otherwise if it's missing we mount it in the first place
+	if secretMount, hasSecret := mounts["secret/"]; hasSecret {
+		if secretMount.Options["version"] != "1" {
+			log.Info().Msg("Secret/ backend is at incorrect version. Unmounting.")
+			// first unmount what's there
+			err = service.client.Sys().Unmount("secret/")
+			if err != nil {
+				log.Error().Err(err).Msgf("Could not unmount secret/ backend")
+				return err
+			}
+			hasSecret = false
+		}
+	}
+	// if we didn't have a secret mount or we removed it
+	if !hasSecret {
+		log.Info().Msg("Mounting secret/ backend with correct version")
+		// if it has no secret, or we unmountd it because it was the wrong version, we remount it
+		err = service.client.Sys().Mount("secret/",
+			&vault.MountInput{
+				Options: map[string]string{"version": "1", "path": "secret/"},
+				Type:    "kv",
+			})
+		if err != nil {
+			log.Error().Err(err).Msgf("Could not mount secret/ backend")
+			return err
+		}
 	}
 	return nil
 }

@@ -36,6 +36,8 @@ func (data *YamlData) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			// then put the value in our struct
 			data.Records[newKey] = value
 		}
+	case "vault":
+		data.Records = flatmap
 	}
 
 	return nil

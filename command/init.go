@@ -31,8 +31,11 @@ func InitEnv(cmd *cobra.Command, args []string) {
 	}
 
 	// spin up consul
-	consulInstance := consul.NewService(workspace)
-	err := startService(consulInstance)
+	consulInstance, err := consul.NewService(workspace)
+	if err != nil {
+		os.Exit(1)
+	}
+	err = startService(consulInstance)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -46,8 +49,17 @@ func InitEnv(cmd *cobra.Command, args []string) {
 	if err != nil {
 		os.Exit(1)
 	}
+	// configure our vault backents
+	err = vaultInstance.ConfigureBackends()
+	if err != nil {
+		os.Exit(1)
+	}
+
 	// spin up nomad
-	nomadInstance := nomad.NewService(workspace, consulInstance.Address, vaultInstance.Address, vaultInstance.RootToken)
+	nomadInstance, err := nomad.NewService(workspace, consulInstance.Address, vaultInstance.Address, vaultInstance.RootToken)
+	if err != nil {
+		os.Exit(1)
+	}
 	err = startService(nomadInstance)
 	if err != nil {
 		os.Exit(1)
